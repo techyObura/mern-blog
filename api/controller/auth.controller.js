@@ -34,14 +34,14 @@ export const signup = async (req, res, next) => {
 };
 
 export const signIn = async (req, res, next) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
-  if (!username || !password || username === "" || password === "") {
+  if (!email || !password || email === "" || password === "") {
     next(errorHandler(400, "All fields are required"));
   }
 
   try {
-    const validUser = await User.findOne({ username });
+    const validUser = await User.findOne({ email });
 
     if (!validUser) {
       next(errorHandler(404, "User not found"));
@@ -62,7 +62,7 @@ export const signIn = async (req, res, next) => {
 
         res
           .status(200)
-          .cookie("access_token", token, { httpOnly: true }, { expiresIn: 20 })
+          .cookie("access_token", token, { httpOnly: true })
           .json(rest);
       }
     }
