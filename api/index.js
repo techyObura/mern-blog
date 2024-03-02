@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+import userRoutes from "./routes/user.route.js";
 import mongoose from "mongoose";
 
 dotenv.config();
@@ -15,7 +16,11 @@ connection.once("open", () => {
   console.log("Successfully Connected to MongoDB");
 });
 
-const port = 800;
+const port = 8000;
+
+// routes
+
+app.use("/api/users", userRoutes);
 
 app.listen(port, () => {
   console.log(`Server listening on ${port}`);
