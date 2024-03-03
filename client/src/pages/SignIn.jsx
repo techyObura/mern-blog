@@ -1,14 +1,21 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Label, TextInput, Button, Alert, Spinner } from "flowbite-react";
+import {
+  signInFailure,
+  signInSuccess,
+  signInStart,
+} from "../redux/userSlice/userSlice";
+import { useDispatch, useSelector } from "react-redux";
 
 const SignIn = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { loading, error: errorMessage } = useSelector((state) => state.user);
   const api_url = "http://localhost:8000";
   const [formData, setFormData] = useState({});
-  const [errorMessage, setErrorMessage] = useState(null);
+
   const [successMessage, setSuccessMessage] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value.trim() });
@@ -18,12 +25,11 @@ const SignIn = () => {
     e.preventDefault();
 
     if (!formData.password || !formData.email) {
-      return setErrorMessage("Please fill out all the fields");
+      return dispatch(signInFailure("Please fill out all the fields"));
     }
 
     try {
-      setLoading(true);
-      setErrorMessage(null);
+      dispatch(signInStart());
       const res = await fetch(`${api_url}/api/auth/sign-in`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -33,30 +39,17 @@ const SignIn = () => {
       const data = await res.json();
 
       if (data.success === false) {
-        return setErrorMessage(data.message);
-      } else {
-        setSuccessMessage("You have successfully created a new account");
+        dispatch(signInFailure(data.message));
       }
-      setLoading(false);
 
       if (res.ok) {
+        dispatch(signInSuccess(data));
         navigate("/");
       }
     } catch (error) {
-      setErrorMessage(error.message);
-      setLoading(false);
+      dispatch(signInFailure(error.message));
     }
   };
-  setTimeout(
-    () => {
-      setErrorMessage(null);
-      setSuccessMessage(null);
-    },
-    15000,
-    setTimeout(() => {
-      setLoading(false);
-    }, 3000)
-  );
 
   return (
     <div className=" min-h-screen mt-20">
