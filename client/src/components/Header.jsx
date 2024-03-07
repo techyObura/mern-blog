@@ -5,7 +5,6 @@ import { AiOutlineSearch } from "react-icons/ai";
 import { FaMoon } from "react-icons/fa";
 const Header = () => {
   const path = useLocation().pathname;
-  console.log(path);
   return (
     <Navbar className="border-b-2">
       <Link
