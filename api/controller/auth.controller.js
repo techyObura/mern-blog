@@ -70,3 +70,55 @@ export const signIn = async (req, res, next) => {
     next(error);
   }
 };
+
+export const google = async (req, res, next) => {
+  try {
+    const { email, name, googlePhotoUrl } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      const generatedPassword =
+        Math.random().toString(36).slice(-8) +
+        Math.random().toString(36).slice(-8);
+
+      const hashedPassword = bcrypt.hashSync(generatedPassword, 10);
+      const newUser = new User({
+        username:
+          name.toLowerCase().split(" ").join("") +
+          Math.random().toString(9).slice(-4),
+        password: hashedPassword,
+        profilePicture: googlePhotoUrl,
+        email: email,
+      });
+
+      try {
+        const savedUser = await newUser.save();
+        const token = jwt.sign(
+          { id: savedUser._id },
+          process.env.JWT_SECRET_KEY
+        );
+        const { password, ...rest } = savedUser._doc;
+        // ... (rest of your code using user data and token)
+        res
+          .status(200)
+          .cookie("access_token", token, { httpOnly: true })
+          .json(rest);
+      } catch (error) {
+        // Handle errors during user save or token generation
+        console.error(error);
+        res.status(500).json({ message: "Error creating user" }); // Example error response
+      }
+    } else {
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY);
+      const { password, ...rest } = user._doc;
+      res
+        .status(200)
+        .cookie("access_token", token, {
+          httpOnly: true,
+        })
+        .json(rest);
+    }
+  } catch (error) {
+    next(error);
+  }
+};
