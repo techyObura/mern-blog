@@ -8,8 +8,12 @@ import {
 } from "../redux/userSlice/userSlice";
 import { useDispatch, useSelector } from "react-redux";
 import OAuth from "../components/OAuth";
+import { HiEyeSlash } from "react-icons/hi2";
+import { HiEye } from "react-icons/hi";
 
 const SignIn = () => {
+  const [view, setView] = useState(false);
+  console.log(view);
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { loading, error: errorMessage } = useSelector((state) => state.user);
@@ -97,11 +101,18 @@ const SignIn = () => {
             <div className="">
               <Label value="Your password" />
               <TextInput
-                type="password"
+                type={view ? "text" : "password"}
                 placeholder="Password"
                 id="password"
                 onChange={handleChange}
+                rightIcon={view ? HiEye : HiEyeSlash}
               />
+              <span
+                onClick={() => setView(!view)}
+                className=" cursor-pointer underline text-blue-500"
+              >
+                {view ? "Hide password" : "View password"}
+              </span>
             </div>
             <Button
               gradientDuoTone="purpleToPink"
@@ -115,14 +126,14 @@ const SignIn = () => {
                   <span className="pl-3">Loading...</span>
                 </>
               ) : (
-                "Sign Up"
+                "Sign In"
               )}
             </Button>
             <OAuth />
           </form>
           <div className="flex gap-2 text-sm mt-5">
             <span>Don't have an account?</span>
-            <Link to="/sign-in" className="text-blue-500">
+            <Link to="/sign-up" className="text-blue-500">
               Sign Up
             </Link>
           </div>
