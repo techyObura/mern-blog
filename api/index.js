@@ -4,6 +4,7 @@ import userRoutes from "./routes/user.route.js";
 import authRoutes from "./routes/auth.route.js";
 import mongoose from "mongoose";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
@@ -12,6 +13,8 @@ const app = express();
 // Middleware configuration
 app.use(express.json());
 app.use(cors());
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
 
 // Database configuration
 const db_uri = process.env.MONGODB_URI;

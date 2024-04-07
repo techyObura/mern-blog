@@ -1,25 +1,31 @@
 import { Alert, Button, TextInput } from "flowbite-react";
-import React, { useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
+import React, { useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import {
   getDownloadURL,
   getStorage,
-  uploadBytesResumable,
   ref,
+  uploadBytesResumable,
 } from "firebase/storage";
 import { app } from "../firebase";
 import { CircularProgressbar } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
+import {
+  updateFailure,
+  updateStart,
+  updateSuccess,
+} from "../redux/userSlice/userSlice.js";
 
 const DashProfile = () => {
+  const api_url = "http://localhost:8000/api";
+  const dispatch = useDispatch();
   const { currentUser } = useSelector((state) => state.user);
-
   const [imageFile, setImageFile] = useState(null);
-
   const [imageFileUrl, setImageFileUrl] = useState(null);
   const [imageFileUploadingProgress, setImageFileUploadingProgress] =
     useState(null);
   const [imageFileUploadError, setImageFileUploadError] = useState(null);
+  const [formData, setFormData] = useState({});
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -35,32 +41,39 @@ const DashProfile = () => {
     }
   }, [imageFile]);
 
-  const uploadImage = () => {
-    /*    service firebase.storage {
-  match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read;
-      allow write: if request.resource.size < 2*1024*1024 && request.resource.contentType.matches('image/.*');
-    }
-  }
-} */
+  const uploadImage = async () => {
+    /*  rules_version = '2';
+
+        // Craft rules based on data in your Firestore database
+        // allow write: if firestore.get(
+        //    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
+        service firebase.storage {
+          match /b/{bucket}/o {
+            match /{allPaths=**} {
+              allow read: if true;
+              allow write: if 
+              request.resource.size < 2 *1024 *1024 && 
+              request.resource.contentType.matches("image/.*")
+              ;
+            }
+          }
+        } */
     setImageFileUploadError(null);
     const storage = getStorage(app);
-    const fileName = new Date().getSeconds() + imageFile.name;
+    const fileName = new Date().getTime() + imageFile.name;
     const storageRef = ref(storage, fileName);
-
     const uploadTask = uploadBytesResumable(storageRef, imageFile);
+
     uploadTask.on(
       "state_changed",
       (snapshot) => {
         const progress =
           (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-
         setImageFileUploadingProgress(progress.toFixed(0));
       },
       (error) => {
         setImageFileUploadError(
-          "Could not upload image(File Must be less than 2mb)"
+          "Could not upload image (File must be less than 2 megabytes)"
         );
         setImageFileUploadingProgress(null);
         setImageFile(null);
@@ -70,34 +83,67 @@ const DashProfile = () => {
       () => {
         getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
           setImageFileUrl(downloadURL);
+          setFormData({ ...formData, profilePicture: downloadURL });
         });
       }
     );
   };
 
+  if (imageFileUploadingProgress == 100) {
+    setTimeout(() => {
+      setImageFileUploadingProgress(null);
+    }, 2000);
+  }
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (Object.keys(formData).length === 0) {
+      return;
+    }
+
+    try {
+      dispatch(updateStart());
+      const res = await fetch(`${api_url}/user/update/${currentUser._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        dispatch(updateFailure(data.message));
+      } else {
+        dispatch(updateSuccess(data));
+      }
+    } catch (error) {
+      dispatch(updateFailure(error.message));
+    }
+  };
   return (
-    <div className="max-w-lg mx-auto p-3 w-full ">
-      <h1 className="my-7 text-center font-semibold text-3xl">Profile</h1>
-      <form className="flex flex-col gap-4">
+    <div className=" max-w-lg mx-auto p-3 w-full">
+      <h3 className="my-7 text-center font-semibold text-3xl">Profile</h3>
+      <form className="flex flex-col" onSubmit={handleSubmit}>
         <input
-          id="profilePicture"
           type="file"
           accept="image/*"
-          className="hidden"
           onChange={handleImageChange}
+          id="fileInput"
+          className="hidden"
         />
-        <div className="w-40 h-40 self-center cursor-pointer shadow-lg relative rounded-full">
-          <label htmlFor="profilePicture">
+        <div className=" relative w-36 h-36 rounded-full self-center cursor-pointer shadow-md">
+          <label htmlFor="fileInput" className="cursor-pointer">
             {imageFileUploadingProgress && (
               <CircularProgressbar
-                value={
-                  imageFileUploadingProgress > 0 && imageFileUploadingProgress
-                }
-                text={
-                  imageFileUploadingProgress > 0 &&
-                  `${imageFileUploadingProgress}%`
-                }
-                strokeWidth={5}
+                value={imageFileUploadingProgress || 0}
+                text={`${imageFileUploadingProgress}%`}
+                strokeWidth={3}
                 styles={{
                   root: {
                     width: "100%",
@@ -107,54 +153,62 @@ const DashProfile = () => {
                     left: 0,
                   },
                   path: {
-                    stroke: `rgba(62,152, 199, ${
-                      imageFileUploadingProgress / 100
-                    })`,
+                    stroke: `rgba(62, ${
+                      imageFileUploadingProgress < 100
+                        ? imageFileUploadingProgress
+                        : imageFileUploadingProgress + 155
+                    }, 199, ${imageFileUploadingProgress / 100})`,
                   },
                 }}
               />
             )}
+          </label>
+          <label htmlFor="fileInput" className=" cursor-pointer">
             <img
               src={imageFileUrl || currentUser.profilePicture}
-              alt={currentUser.username}
-              className={`rounded-full h-full w-full object-cover border-y-pink-300 border-8 border-[lightgrey] ${
-                imageFileUploadingProgress &&
-                imageFileUploadingProgress < 100 &&
-                "opacity-60"
-              }`}
+              alt={currentUser ? currentUser.username : "profile picture"}
+              className="rounded-full w-full h-full border-4 object-cover border-[lightgrey] cursor-pointer"
             />
           </label>
         </div>
         {imageFileUploadError && (
-          <Alert color="failure">{imageFileUploadError}</Alert>
+          <Alert color={"failure"}>{imageFileUploadError} </Alert>
         )}
-        <TextInput
-          type="text"
-          id="username"
-          placeholder="username"
-          defaultValue={currentUser.username}
-        />
 
-        <TextInput
-          type="email"
-          id="email"
-          placeholder="email"
-          defaultValue={currentUser.email}
-        />
-
-        <TextInput
-          type="password"
-          id="password"
-          placeholder="password"
-          autoComplete="current-password"
-        />
-        <Button type="submit" gradientDuoTone="purpleToBlue" outline>
-          Update
+        <div className="flex flex-col gap-4 mt-4">
+          <TextInput
+            type="text"
+            id="username"
+            placeholder="Username"
+            defaultValue={currentUser.username}
+            onChange={handleChange}
+          />
+          <TextInput
+            type="email"
+            id="email"
+            placeholder="Email"
+            defaultValue={currentUser.email}
+            onChange={handleChange}
+          />
+          <TextInput
+            type="password"
+            id="password"
+            placeholder="Password"
+            onChange={handleChange}
+          />
+        </div>
+        <Button
+          type="submit"
+          className="mt-4"
+          gradientDuoTone={"purpleToBlue"}
+          outline
+        >
+          Change Profile
         </Button>
       </form>
-      <div className="text-red-500 flex justify-between text-md mt-5">
-        <span className="cursor-pointer">Delete Account</span>
-        <span className="cursor-pointer">Sign Out</span>
+      <div className="text-red-500 flex justify-between mt-5">
+        <span className=" cursor-pointer">Delete Account</span>
+        <span className=" cursor-pointer">Sign Out</span>
       </div>
     </div>
   );

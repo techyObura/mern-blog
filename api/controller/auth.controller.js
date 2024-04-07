@@ -2,6 +2,7 @@ import User from "../modules/user.module.js";
 import bcrypt from "bcryptjs";
 import { errorHandler } from "../utils/errorHandler.js";
 import jwt from "jsonwebtoken";
+import generateToken from "../utils/generateToken.js";
 
 export const signup = async (req, res, next) => {
   const { username, email, password } = req.body;
@@ -29,7 +30,8 @@ export const signup = async (req, res, next) => {
 
   newUser
     .save()
-    .then(() => res.json({ message: "Signup successful" }))
+    .then((user) => generateToken(res, user._id))
+    .then(() => res.status(201).json({ message: "Signup successful" }))
     .catch((error) => next(error));
 };
 
@@ -51,24 +53,23 @@ export const signIn = async (req, res, next) => {
       if (!validPassword) {
         next(errorHandler(400, "Invalid Password"));
       } else {
-        const token = jwt.sign(
-          {
-            id: validUser._id,
-          },
-          process.env.JWT_SECRET_KEY
-        );
-
         const { password: pass, ...rest } = validUser._doc;
-
-        res
-          .status(200)
-          .cookie("access_token", token, { httpOnly: true })
-          .json(rest);
+        generateToken(res, validUser._id);
+        res.status(200).json(rest);
       }
     }
   } catch (error) {
     next(error);
   }
+};
+
+export const logout = async (req, res, next) => {
+  res.cookie("jwt", "", {
+    httpOnly: true,
+    expires: new Date(0),
+  });
+
+  res.status(200).json("logged out");
 };
 
 export const google = async (req, res, next) => {
